@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI GxP Document Draft Agent | Pydantic AI & Qdrant RAG</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+  <!-- App Header -->
+  <header class="app-header">
+    <div class="brand-section">
+      <div class="brand-icon">GxP</div>
+      <div class="brand-text">
+        <h1>AI GxP Document Draft Studio</h1>
+        <p>Powered by Pydantic AI • Qdrant Vector Engine • 21 CFR Part 11 / ALCOA+</p>
+      </div>
+    </div>
+
+    <div class="header-controls">
+      <div id="kb-status-badge" class="status-pill qdrant-online">
+        Qdrant KB: Initializing...
+      </div>
+
+      <div id="langfuse-badge" class="status-pill" style="background: #fdf4ff; color: #86198f; border: 1px solid #f5d0fe;">
+        🔭 Langfuse: Local Tracing
+      </div>
+
+      <div class="role-badge-group">
+        <span>👤 User:</span>
+        <select id="user-role-select" class="role-select">
+          <option value="QA_SPECIALIST">Dr. Eleanor Vance (QA Specialist)</option>
+          <option value="QA_MANAGER">Marcus Sterling (QA Manager)</option>
+          <option value="SME_REVIEWER">James Robinson (Lead Scientist)</option>
+          <option value="AUTHOR">Sarah Jenkins (Author / Drafter)</option>
+        </select>
+      </div>
+    </div>
+  </header>
+
+  <!-- Navigation Bar -->
+  <nav class="app-nav">
+    <button class="nav-tab active" data-tab="studio">
+      <span>📄</span> Drafting Studio
+    </button>
+    <button class="nav-tab" data-tab="kb">
+      <span>📚</span> Knowledge Base (Qdrant RAG)
+    </button>
+    <button class="nav-tab" data-tab="approvals">
+      <span>✍️</span> Human Approvals (HITL)
+      <span id="pending-approvals-badge" class="tab-badge" style="display: none;">0</span>
+    </button>
+    <button class="nav-tab" data-tab="audit">
+      <span>🛡️</span> 21 CFR Part 11 Audit Trail
+    </button>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    
+    <!-- Tab 1: Drafting Studio -->
+    <div id="tab-studio" class="tab-pane active">
+      <div class="studio-grid">
+        
+        <!-- Left: Drafting Configuration -->
+        <div class="card">
+          <div class="card-header">
+            <h2>Drafting Configuration</h2>
+            <span style="font-size: 0.78rem; color: var(--text-muted);">Pydantic AI Agent</span>
+          </div>
+          <div class="card-body">
+            <form id="draft-form">
+              
+              <div class="form-group">
+                <label for="model-select">LLM Engine / Provider:</label>
+                <select id="model-select" class="form-select">
+                  <option value="openai:gpt-4o">OpenAI GPT-4o (Frontier)</option>
+                  <option value="anthropic:claude-3-7-sonnet-latest">Anthropic Claude 3.7 Sonnet</option>
+                  <option value="google:gemini-2.0-flash">Google Gemini 2.0 Flash</option>
+                  <option value="ollama:llama3.3">Ollama / Local (Llama 3.3)</option>
+                  <option value="test">TestModel (Offline Deterministic)</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="doc-type-select">GxP Document Type:</label>
+                <select id="doc-type-select" class="form-select">
+                  <option value="SOP">Standard Operating Procedure (SOP)</option>
+                  <option value="WORK_INSTRUCTION">Work Instruction (WI)</option>
+                  <option value="DEVIATION_REPORT">Deviation / Non-conformance Report</option>
+                  <option value="VALIDATION_PROTOCOL">Validation Protocol (IQ/OQ/PQ)</option>
+                  <option value="CAPA">Corrective & Preventive Action (CAPA)</option>
+                  <option value="BATCH_PRODUCTION_RECORD">Batch Production Record (BPR)</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="dept-input">Originating Department:</label>
+                <input type="text" id="dept-input" class="form-control" value="Manufacturing & Quality Control" required>
+              </div>
+
+              <div class="form-group">
+                <label for="draft-prompt">Requirements & Context / Scope:</label>
+                <textarea id="draft-prompt" class="form-control" rows="5" placeholder="Specify document requirements, equipment, critical parameters, regulatory references, or deviation triggers..." required>Draft an SOP for Cleanroom Disinfection and Sporicidal Agent Application after a microbial excursion in ISO Class 5 filling suite.</textarea>
+              </div>
+
+              <!-- Quick Templates -->
+              <div style="margin-bottom: 1.25rem;">
+                <label style="font-size: 0.78rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 0.35rem;">Quick Templates:</label>
+                <div style="display: flex; flex-direction: column; gap: 0.35rem;">
+                  <button type="button" class="btn btn-secondary quick-prompt-btn" style="padding: 0.35rem 0.6rem; font-size: 0.78rem; justify-content: flex-start;"
+                    data-type="SOP" data-dept="Manufacturing Operations"
+                    data-prompt="Draft an SOP for Cleanroom Disinfection and Sporicidal Agent Application after a microbial excursion in ISO Class 5 filling suite.">
+                    🧴 Cleanroom Sanitization SOP
+                  </button>
+                  <button type="button" class="btn btn-secondary quick-prompt-btn" style="padding: 0.35rem 0.6rem; font-size: 0.78rem; justify-content: flex-start;"
+                    data-type="WORK_INSTRUCTION" data-dept="Analytical Development"
+                    data-prompt="Create a detailed Work Instruction for HPLC Column Regeneration and Pressure Baseline Verification for Agilent 1260 HPLC.">
+                    🧪 HPLC Column Cleaning Work Instruction
+                  </button>
+                  <button type="button" class="btn btn-secondary quick-prompt-btn" style="padding: 0.35rem 0.6rem; font-size: 0.78rem; justify-content: flex-start;"
+                    data-type="VALIDATION_PROTOCOL" data-dept="Validation Engineering"
+                    data-prompt="Generate an IQ/OQ Validation Protocol for a Steam Sterilizer Autoclave per GAMP 5 and EN 285 including thermocouple mapping and biological indicator lethality testing.">
+                    ⚙️ Autoclave IQ/OQ Validation Protocol
+                  </button>
+                </div>
+              </div>
+
+              <button type="submit" id="btn-draft-submit" class="btn btn-primary btn-block">
+                <span>✨</span> Draft GxP Document
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <!-- Right: Draft Preview & Citations -->
+        <div class="draft-viewer-container">
+          
+          <div id="draft-empty-state" class="card empty-state">
+            <div class="empty-state-icon">📋</div>
+            <h3>No Document Generated Yet</h3>
+            <p style="margin-top: 0.5rem;">Configure requirements on the left and click "Draft GxP Document". The Pydantic AI agent will perform semantic retrieval against the Qdrant knowledge base, structure procedural steps, and cite grounded evidence.</p>
+          </div>
+
+          <div id="draft-output-container" style="display: none;"></div>
+
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Tab 2: Knowledge Base & Qdrant RAG -->
+    <div id="tab-kb" class="tab-pane">
+      <div style="display: grid; grid-template-columns: 360px 1fr; gap: 1.5rem; align-items: start;">
+        
+        <!-- Left: Upload & Ingestion -->
+        <div class="card">
+          <div class="card-header">
+            <h2>Ingest GxP Documents</h2>
+            <button id="btn-seed-data" class="btn btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.78rem;">
+              <span>📥</span> Load Sample GxP Docs
+            </button>
+          </div>
+          <div class="card-body">
+            <div id="upload-dropzone" class="upload-dropzone">
+              <input type="file" id="file-input" style="display: none;" accept=".pdf,.docx,.doc,.md,.markdown,.txt,.json">
+              <div class="upload-icon">📤</div>
+              <h4>Drag & Drop GxP Files</h4>
+              <p style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.25rem;">Supports PDF, DOCX, Markdown, Text, and JSON</p>
+            </div>
+
+            <!-- Search Sandbox -->
+            <div style="margin-top: 1.5rem; border-top: 1px solid var(--border-subtle); padding-top: 1.25rem;">
+              <h3 style="font-size: 0.95rem; margin-bottom: 0.5rem;">🔎 Qdrant Semantic Search</h3>
+              <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem;">
+                <input type="text" id="kb-search-query" class="form-control" placeholder="Search SOPs, limits, deviations..." value="sporicidal contact time">
+                <button id="kb-search-btn" class="btn btn-primary" style="padding: 0.5rem 0.85rem;">Search</button>
+              </div>
+              <div id="kb-search-results" style="max-height: 280px; overflow-y: auto;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Indexed Documents -->
+        <div class="card">
+          <div class="card-header">
+            <h2>Indexed Knowledge Base Documents</h2>
+            <span style="font-size: 0.8rem; color: var(--text-muted);">Qdrant Vector Collection</span>
+          </div>
+          <div class="card-body" style="padding: 0;">
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Doc ID</th>
+                    <th>Document Title</th>
+                    <th>Type</th>
+                    <th>Department</th>
+                    <th>Chunks</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="kb-docs-table-body">
+                  <tr>
+                    <td colspan="6" class="empty-state">Loading indexed documents...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Tab 3: Human Approvals (HITL) -->
+    <div id="tab-approvals" class="tab-pane">
+      <div class="card">
+        <div class="card-header">
+          <h2>Human-in-the-Loop (HITL) Approval Requests</h2>
+          <span style="font-size: 0.8rem; color: var(--text-muted);">21 CFR Part 11 Electronic Signatures</span>
+        </div>
+        <div class="card-body">
+          <div id="approvals-list-container">
+            <div class="empty-state">Loading approvals...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 4: Audit Trail -->
+    <div id="tab-audit" class="tab-pane">
+      <div class="card">
+        <div class="card-header">
+          <h2>21 CFR Part 11 Audit Trail & ALCOA+ Integrity</h2>
+          <div id="audit-integrity-badge" class="status-pill compliance">
+            🔒 Verifying SHA-256 Hash Chain...
+          </div>
+        </div>
+        <div class="card-body" style="padding: 0;">
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Timestamp (UTC)</th>
+                  <th>Event Type</th>
+                  <th>User & Role</th>
+                  <th>Doc ID</th>
+                  <th>Action Details</th>
+                  <th>Electronic Signature</th>
+                </tr>
+              </thead>
+              <tbody id="audit-table-body">
+                <tr>
+                  <td colspan="6" class="empty-state">Loading audit logs...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Chunk Inspection Modal -->
+  <div id="chunk-modal" class="modal-backdrop">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="chunk-modal-title">Indexed Document Chunks</h3>
+        <button class="btn btn-secondary modal-close-btn" style="padding: 0.25rem 0.5rem;">✕</button>
+      </div>
+      <div class="modal-body" id="chunk-modal-body"></div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary modal-close-btn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Approval Modal -->
+  <div id="create-approval-modal" class="modal-backdrop">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3>Initiate 21 CFR Part 11 Approval Workflow</h3>
+        <button class="btn btn-secondary modal-close-btn" style="padding: 0.25rem 0.5rem;">✕</button>
+      </div>
+      <div class="modal-body">
+        <div style="margin-bottom: 1rem;">
+          <strong id="create-appr-doc-id">Document</strong>
+        </div>
+        <div class="form-group">
+          <label for="create-appr-justification">Business & Regulatory Justification for Drafting:</label>
+          <textarea id="create-appr-justification" class="form-control" rows="4" required></textarea>
+        </div>
+        <p style="font-size: 0.8rem; color: var(--text-muted);">
+          Submitting this request will pause the automated lifecycle and route the draft to authorized Quality Assurance (QA) and Subject Matter Expert (SME) reviewers for formal review and electronic signature execution.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary modal-close-btn">Cancel</button>
+        <button class="btn btn-primary" id="btn-confirm-create-approval">Submit for Review</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Electronic Signature Modal -->
+  <div id="esig-modal" class="modal-backdrop">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="esig-modal-title">✍️ 21 CFR Part 11 Electronic Signature</h3>
+        <button class="btn btn-secondary modal-close-btn" style="padding: 0.25rem 0.5rem;">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="esig-signer-name">Printed Full Legal Name:</label>
+          <input type="text" id="esig-signer-name" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label for="esig-user-id">User ID:</label>
+          <input type="text" id="esig-user-id" class="form-control" readonly>
+        </div>
+        <div class="form-group">
+          <label for="esig-role">Signing Role:</label>
+          <input type="text" id="esig-role" class="form-control" readonly>
+        </div>
+        <div class="form-group">
+          <label for="esig-meaning">Signature Meaning Declaration:</label>
+          <textarea id="esig-meaning" class="form-control" rows="2" readonly></textarea>
+        </div>
+        <div class="form-group">
+          <label for="esig-comments">Review Comments / Technical Notes:</label>
+          <textarea id="esig-comments" class="form-control" rows="3" placeholder="Enter review remarks, verification notes, or reason..." required>Reviewed and verified for complete compliance with site SOPs and FDA 21 CFR Part 211.</textarea>
+        </div>
+        <p style="font-size: 0.78rem; color: #1e40af; background: #eff6ff; padding: 0.6rem; border-radius: 4px; border: 1px solid #bfdbfe;">
+          ⚖️ <strong>21 CFR Part 11 Attestation:</strong> By clicking confirm, you certify under penalty of perjury that this electronic signature is the legally binding equivalent of your handwritten signature.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary modal-close-btn">Cancel</button>
+        <button class="btn btn-primary" id="btn-confirm-esig">Confirm & Sign Record</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
